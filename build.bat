@@ -40,7 +40,7 @@ if not exist "%NPDMTOOL%"     ( echo ERROR: npdmtool.exe not found in tools\    
 if not exist "%KEYS%"         ( echo ERROR: keys.dat not found in root             & goto :fail )
 if not exist "%ROOT%exefs"    ( echo ERROR: exefs\ folder not found                & goto :fail )
 if not exist "%ROOT%logo"     ( echo ERROR: logo\ folder not found                 & goto :fail )
-if not exist "%ROOT%video"    ( echo ERROR: video\ folder not found                & goto :fail )
+if not exist "%ROOT%video\video.mp4" ( echo ERROR: video\video.mp4 not found       & goto :fail )
 if not exist "%ROOT%icon.jpg" ( echo ERROR: icon.jpg not found in repo root        & goto :fail )
 if not exist "%ROOT%npdm.json" ( echo ERROR: npdm.json not found in repo root      & goto :fail )
 if not exist "%TOOLS%\generate_control.py" ( echo ERROR: tools\generate_control.py not found & goto :fail )
