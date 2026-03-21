@@ -1,0 +1,216 @@
+name: Build Video Player NSP
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+env:
+  TITLE:       "Gandalf Sax"
+  AUTHOR:      "Gandalf"
+  DISPLAY_VER: "1.0.0"
+  TITLE_ID:    "0400000000400000"
+  KEYGEN:      "19"
+  SDK_VER:     "13030000"
+  SYS_VER:     "19.0.0"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ─────────────────────────────────────────────────────────────────────
+      # Keys and optional signing material
+      # ─────────────────────────────────────────────────────────────────────
+      - name: Setup keys
+        run: |
+          echo "${{ secrets.HACPACK_KEYS }}" > keys.dat
+
+          if [ -n "${{ secrets.NCASIG2_PRIVATE_KEY }}" ]; then
+            echo "${{ secrets.NCASIG2_PRIVATE_KEY }}" > ncasig2_private.pem
+            openssl rsa -in ncasig2_private.pem -noout -modulus | \
+              sed 's/Modulus=//' | \
+              python3 -c "import sys,binascii; sys.stdout.buffer.write(binascii.unhexlify(sys.stdin.read().strip()))" \
+              > ncasig2_modulus.bin
+          fi
+          if [ -n "${{ secrets.ACID_PRIVATE_KEY }}" ]; then
+            echo "${{ secrets.ACID_PRIVATE_KEY }}" > acid_private.pem
+          fi
+          if [ -n "${{ secrets.NCASIG1_PRIVATE_KEY }}" ]; then
+            echo "${{ secrets.NCASIG1_PRIVATE_KEY }}" > ncasig1_private.pem
+          fi
+
+          chmod +x tools/hacpack
+
+      # ─────────────────────────────────────────────────────────────────────
+      # Step 0 — Build NPDM from npdm.json
+      # ─────────────────────────────────────────────────────────────────────
+      - name: Install npdmtool
+        run: |
+          wget -q https://apt.devkitpro.org/install-devkitpro-pacman
+          chmod +x install-devkitpro-pacman
+          sudo ./install-devkitpro-pacman
+          sudo dkp-pacman -Sy --noconfirm switch-tools
+
+      - name: Build NPDM
+        run: |
+          python3 -c "
+          import json
+          with open('npdm.json') as f:
+              d = json.load(f)
+          d['title_id']             = '0x${{ env.TITLE_ID }}'
+          d['program_id']           = '0x${{ env.TITLE_ID }}'
+          d['program_id_range_min'] = '0x${{ env.TITLE_ID }}'
+          d['program_id_range_max'] = '0x${{ env.TITLE_ID }}'
+          with open('npdm_patched.json', 'w') as f:
+              json.dump(d, f, indent=4)
+          "
+          /opt/devkitpro/tools/bin/npdmtool npdm_patched.json exefs/main.npdm
+          rm -f npdm_patched.json
+
+      # ─────────────────────────────────────────────────────────────────────
+      # Step 1 — Generate control romfs
+      # ─────────────────────────────────────────────────────────────────────
+      - name: Generate control romfs
+        run: |
+          mkdir -p control_romfs nca nsp
+          python3 tools/generate_control.py icon.jpg control_romfs/ \
+            --titleid    ${{ env.TITLE_ID }}   \
+            --title      "${{ env.TITLE }}"    \
+            --author     "${{ env.AUTHOR }}"   \
+            --displayver ${{ env.DISPLAY_VER }}
+
+      # ─────────────────────────────────────────────────────────────────────
+      # Step 2 — Build Control NCA
+      # ─────────────────────────────────────────────────────────────────────
+      - name: Build Control NCA
+        run: |
+          HACPACK_FLAGS="-k ./keys.dat \
+            -o ./nca/ \
+            --type nca \
+            --keygeneration ${{ env.KEYGEN }} \
+            --sdkversion ${{ env.SDK_VER }} \
+            --ncatype control \
+            --titleid ${{ env.TITLE_ID }} \
+            --romfsdir ./control_romfs/"
+
+          [ -f ncasig1_private.pem ] && \
+            HACPACK_FLAGS="$HACPACK_FLAGS --ncasig1privatekey ./ncasig1_private.pem"
+
+          tools/hacpack $HACPACK_FLAGS
+
+          CONTROL_NCA=$(ls nca/*.nca | xargs -n1 basename | head -1)
+          echo "CONTROL_NCA=$CONTROL_NCA" >> $GITHUB_ENV
+
+      # ─────────────────────────────────────────────────────────────────────
+      # Step 3 — Build Program NCA
+      # ─────────────────────────────────────────────────────────────────────
+      - name: Build Program NCA
+        run: |
+          HACPACK_FLAGS="-k ./keys.dat \
+            -o ./nca/ \
+            --type nca \
+            --keygeneration ${{ env.KEYGEN }} \
+            --sdkversion ${{ env.SDK_VER }} \
+            --ncatype program \
+            --titleid ${{ env.TITLE_ID }} \
+            --exefsdir ./exefs/ \
+            --logodir ./logo/"
+
+          if [ -f ncasig2_private.pem ]; then
+            HACPACK_FLAGS="$HACPACK_FLAGS --ncasig2privatekey ./ncasig2_private.pem"
+            [ -f ncasig2_modulus.bin ] && \
+              HACPACK_FLAGS="$HACPACK_FLAGS --ncasig2modulus ./ncasig2_modulus.bin"
+          fi
+          [ -f acid_private.pem ]    && \
+            HACPACK_FLAGS="$HACPACK_FLAGS --acidsigprivatekey ./acid_private.pem"
+          [ -f ncasig1_private.pem ] && \
+            HACPACK_FLAGS="$HACPACK_FLAGS --ncasig1privatekey ./ncasig1_private.pem"
+
+          tools/hacpack $HACPACK_FLAGS
+
+          PROGRAM_NCA=$(ls nca/*.nca | xargs -n1 basename | grep -v "${{ env.CONTROL_NCA }}" | head -1)
+          echo "PROGRAM_NCA=$PROGRAM_NCA" >> $GITHUB_ENV
+
+      # ─────────────────────────────────────────────────────────────────────
+      # Step 4 — Build Manual NCA
+      # ─────────────────────────────────────────────────────────────────────
+      - name: Build Manual NCA
+        run: |
+          mkdir -p manual_stage/html-document/.htdocs
+          cp -r video/. manual_stage/html-document/.htdocs/
+
+          HACPACK_FLAGS="-k ./keys.dat \
+            -o ./nca/ \
+            --type nca \
+            --keygeneration ${{ env.KEYGEN }} \
+            --sdkversion ${{ env.SDK_VER }} \
+            --ncatype manual \
+            --titleid ${{ env.TITLE_ID }} \
+            --romfsdir ./manual_stage/"
+
+          [ -f ncasig1_private.pem ] && \
+            HACPACK_FLAGS="$HACPACK_FLAGS --ncasig1privatekey ./ncasig1_private.pem"
+
+          tools/hacpack $HACPACK_FLAGS
+
+          MANUAL_NCA=$(ls nca/*.nca | xargs -n1 basename \
+            | grep -v "${{ env.CONTROL_NCA }}" \
+            | grep -v "${{ env.PROGRAM_NCA }}" \
+            | head -1)
+          echo "MANUAL_NCA=$MANUAL_NCA" >> $GITHUB_ENV
+
+      # ─────────────────────────────────────────────────────────────────────
+      # Step 5 — Build Meta NCA
+      # ─────────────────────────────────────────────────────────────────────
+      - name: Build Meta NCA
+        run: |
+          HACPACK_FLAGS="-k ./keys.dat \
+            -o ./nca/ \
+            --type nca \
+            --keygeneration ${{ env.KEYGEN }} \
+            --sdkversion ${{ env.SDK_VER }} \
+            --ncatype meta \
+            --titletype application \
+            --titleid ${{ env.TITLE_ID }} \
+            --requiredsystemversion ${{ env.SYS_VER }} \
+            --programnca ./nca/${{ env.PROGRAM_NCA }} \
+            --controlnca ./nca/${{ env.CONTROL_NCA }} \
+            --htmldocnca ./nca/${{ env.MANUAL_NCA }}"
+
+          [ -f ncasig1_private.pem ] && \
+            HACPACK_FLAGS="$HACPACK_FLAGS --ncasig1privatekey ./ncasig1_private.pem"
+
+          tools/hacpack $HACPACK_FLAGS
+
+      # ─────────────────────────────────────────────────────────────────────
+      # Step 6 — Build NSP
+      # ─────────────────────────────────────────────────────────────────────
+      - name: Build NSP
+        run: |
+          tools/hacpack \
+            -k ./keys.dat \
+            -o ./nsp/ \
+            --type nsp \
+            --ncadir ./nca/ \
+            --titleid ${{ env.TITLE_ID }}
+
+          mv nsp/${{ env.TITLE_ID }}.nsp "nsp/${{ env.TITLE }} [${{ env.TITLE_ID }}][v0].nsp"
+
+      # ─────────────────────────────────────────────────────────────────────
+      # Cleanup and upload
+      # ─────────────────────────────────────────────────────────────────────
+      - name: Cleanup sensitive files
+        if: always()
+        run: |
+          rm -f keys.dat acid_private.pem ncasig1_private.pem \
+                ncasig2_private.pem ncasig2_modulus.bin
+
+      - name: Upload NSP
+        uses: actions/upload-artifact@v4
+        with:
+          name: nsp
+          path: nsp/*.nsp
