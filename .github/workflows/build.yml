@@ -17,6 +17,8 @@ env:
 jobs:
   build:
     runs-on: ubuntu-latest
+    container:
+      image: devkitpro/devkita64:latest
 
     steps:
       - name: Checkout
@@ -48,12 +50,6 @@ jobs:
       # ─────────────────────────────────────────────────────────────────────
       # Step 0 — Build NPDM from npdm.json
       # ─────────────────────────────────────────────────────────────────────
-      - name: Install npdmtool
-        run: |
-          wget -q https://apt.devkitpro.org/install-devkitpro-pacman
-          chmod +x install-devkitpro-pacman
-          sudo ./install-devkitpro-pacman
-          sudo dkp-pacman -Sy --noconfirm switch-tools
 
       - name: Build NPDM
         run: |
