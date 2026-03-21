@@ -113,5 +113,19 @@ The built NSP is uploaded as a workflow artifact.
 ## Notes
 
 - Requires a hacked Nintendo Switch running custom firmware
-- Title ID must be in the homebrew range (`0400000000000000`–`04000000FFFFFFFF`)
+- **Title ID ranges:**
+  - `010000000000XXXX` — Nintendo system titles and applets, do not use
+  - `0100XXXXXXXXXXXX0000` — Switch 1 retail games (eShop titles)
+  - `0400XXXXXXXXXXXX0000` — Switch 2 retail games, avoid on Switch 1 CFW if possible
+  - `05XXXXXXXXXXXXXX0000` — Community homebrew convention, safe to use
+- Title IDs must end in `Y000` where Y is an **even** hex digit for a base application
+  - `0x800` bitmask set = update title for the same base ID
+  - Odd Y digit = DLC
+- On Switch 1 CFW, using a `0400` prefix like `0400000000420000` works in practice
+  since the console has no Switch 2 titles to conflict with, but `05XXXXXXXXXXXXXX0000`
+  is the correct homebrew-safe range
+- Other ranges (`0200`, `0300`, `0600`–`0F00`) are undocumented and likely reserved
+- Title IDs within the homebrew range should still be checked against the community
+  registry at https://wiki.gbatemp.net/wiki/List_of_Switch_homebrew_titleID to avoid
+  conflicts with other released homebrew
 - The offline web applet used for playback is a system applet present on all Switch firmware versions — no internet connection is required
