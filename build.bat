@@ -38,12 +38,36 @@ set NCASIG2_MOD=%ROOT%ncasig2_modulus.bin
 if not exist "%HACPACK%"      ( echo ERROR: hacpack.exe not found in tools\        & goto :fail )
 if not exist "%NPDMTOOL%"     ( echo ERROR: npdmtool.exe not found in tools\       & goto :fail )
 if not exist "%KEYS%"         ( echo ERROR: keys.dat not found in root             & goto :fail )
-if not exist "%ROOT%exefs"    ( echo ERROR: exefs\ folder not found                & goto :fail )
 if not exist "%ROOT%logo"     ( echo ERROR: logo\ folder not found                 & goto :fail )
-if not exist "%ROOT%video\video.mp4" ( echo ERROR: video\video.mp4 not found       & goto :fail )
 if not exist "%ROOT%icon.jpg" ( echo ERROR: icon.jpg not found in repo root        & goto :fail )
 if not exist "%ROOT%npdm.json" ( echo ERROR: npdm.json not found in repo root      & goto :fail )
 if not exist "%TOOLS%\generate_control.py" ( echo ERROR: tools\generate_control.py not found & goto :fail )
+
+:: ─────────────────────────────────────────────────────────────────────────────
+:: Step -1 — Detect content type and stage exefs
+:: ─────────────────────────────────────────────────────────────────────────────
+
+echo.
+echo [-1/7] Detecting content type...
+
+if exist "%ROOT%video\index.html" (
+    echo   Found video\index.html - using template\index\exefs
+    if not exist "%ROOT%template\index\exefs\main" ( echo ERROR: template\index\exefs\main not found & goto :fail )
+    if exist "%ROOT%exefs" rmdir /s /q "%ROOT%exefs"
+    mkdir "%ROOT%exefs"
+    copy /y "%ROOT%template\index\exefs\main" "%ROOT%exefs\main" >nul
+    if errorlevel 1 ( echo ERROR: Failed to copy template\index\exefs\main & goto :fail )
+) else if exist "%ROOT%video\video.mp4" (
+    echo   Found video\video.mp4 - using template\video\exefs
+    if not exist "%ROOT%template\video\exefs\main" ( echo ERROR: template\video\exefs\main not found & goto :fail )
+    if exist "%ROOT%exefs" rmdir /s /q "%ROOT%exefs"
+    mkdir "%ROOT%exefs"
+    copy /y "%ROOT%template\video\exefs\main" "%ROOT%exefs\main" >nul
+    if errorlevel 1 ( echo ERROR: Failed to copy template\video\exefs\main & goto :fail )
+) else (
+    echo ERROR: video\ must contain either index.html or video.mp4 - neither found
+    goto :fail
+)
 
 :: ─────────────────────────────────────────────────────────────────────────────
 :: Step 0 — Patch npdm.json and build NPDM
@@ -198,6 +222,7 @@ if exist "%TEMP%\modulus_hex.txt"     del "%TEMP%\modulus_hex.txt"
 if exist "%ROOT%npdm_patched.json"    del "%ROOT%npdm_patched.json"
 if exist "%ROOT%control_romfs"        rmdir /s /q "%ROOT%control_romfs"
 if exist "%ROOT%manual_stage"         rmdir /s /q "%ROOT%manual_stage"
+if exist "%ROOT%exefs"                rmdir /s /q "%ROOT%exefs"
 if exist "%ROOT%nca"                  rmdir /s /q "%ROOT%nca"
 if exist "%ROOT%hacpack_backup"       rmdir /s /q "%ROOT%hacpack_backup"
 if exist "%ROOT%hacpack_temp"         rmdir /s /q "%ROOT%hacpack_temp"
@@ -217,6 +242,7 @@ if exist "%TEMP%\modulus_hex.txt"     del "%TEMP%\modulus_hex.txt"
 if exist "%ROOT%npdm_patched.json"    del "%ROOT%npdm_patched.json"
 if exist "%ROOT%control_romfs"        rmdir /s /q "%ROOT%control_romfs"
 if exist "%ROOT%manual_stage"         rmdir /s /q "%ROOT%manual_stage"
+if exist "%ROOT%exefs"                rmdir /s /q "%ROOT%exefs"
 if exist "%ROOT%nca"                  rmdir /s /q "%ROOT%nca"
 if exist "%ROOT%hacpack_backup"       rmdir /s /q "%ROOT%hacpack_backup"
 if exist "%ROOT%hacpack_temp"         rmdir /s /q "%ROOT%hacpack_temp"

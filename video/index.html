@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Video Player</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #000;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+    #play-btn {
+      font-size: 2em;
+      padding: 0.6em 1.4em;
+      background: #e4000f;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    #player {
+      display: none;
+      width: 100%;
+      height: 100%;
+    }
+  </style>
+</head>
+<body>
+  <button id="play-btn" onclick="startVideo()">▶ Play</button>
+  <video id="player" src="video.mp4" controls autoplay></video>
+
+  <script>
+    function startVideo() {
+      document.getElementById('play-btn').style.display = 'none';
+      var v = document.getElementById('player');
+      v.style.display = 'block';
+      v.play();
+    }
+  </script>
+</body>
+</html>

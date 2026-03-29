@@ -48,9 +48,24 @@ jobs:
           chmod +x tools/hacpack
 
       # ─────────────────────────────────────────────────────────────────────
+      # Step -1 — Detect content type and stage exefs
+      # ─────────────────────────────────────────────────────────────────────
+      - name: Detect content type and stage exefs
+        run: |
+          if [ -f video/index.html ]; then
+            echo "Found video/index.html - using template/index/exefs"
+            cp -r template/index/exefs ./exefs
+          elif [ -f video/video.mp4 ]; then
+            echo "Found video/video.mp4 - using template/video/exefs"
+            cp -r template/video/exefs ./exefs
+          else
+            echo "ERROR: video/ must contain either index.html or video.mp4 - neither found"
+            exit 1
+          fi
+
+      # ─────────────────────────────────────────────────────────────────────
       # Step 0 — Build NPDM from npdm.json
       # ─────────────────────────────────────────────────────────────────────
-
       - name: Build NPDM
         run: |
           python3 -c "
@@ -208,5 +223,5 @@ jobs:
       - name: Upload NSP
         uses: actions/upload-artifact@v4
         with:
-          name: nsp
+          name: video-nsp
           path: nsp/*.nsp

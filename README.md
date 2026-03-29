@@ -1,6 +1,7 @@
 # Nintendo Switch Video Player NSP
 
-A minimal Nintendo Switch homebrew title that launches directly into video playback using the system's built-in offline web applet. No HTML, no redirect — the applet boots straight into `video.mp4`.
+A minimal Nintendo Switch homebrew title that launches directly into video playback using the system's built-in offline web applet.
+Build process choses the binary to use to either boot into `index.html` for tv series, or multiple videos; OR `video.mp4` for single videos.
 
 ---
 
@@ -8,11 +9,18 @@ A minimal Nintendo Switch homebrew title that launches directly into video playb
 
 The NSP contains three NCAs:
 
-- **Program NCA** — a minimal NSO that calls `webOfflineCreate` and hands off immediately to the system offline web applet
-- **Manual NCA** — contains `video.mp4` inside the required `html-document/.htdocs/` romfs structure
-- **Control NCA** — title metadata, icon, and display name
+- **Program NCA** — a minimal NSO that calls `webOfflineCreate` and hands off immediately to the system offline web applet.
+- **Manual NCA** — contains `index.html` with aditional videos or `video.mp4` inside the required `html-document/.htdocs/` romfs structure.
+- **Control NCA** — title metadata, icon, and display name.
 
 The program does nothing except configure and launch the applet:
+
+```c
+webOfflineCreate(&config, WebDocumentKind_OfflineHtmlPage, 0, ".htdocs/index.html");
+webConfigSetMediaPlayerUi(&config, true);
+webConfigShow(&config, &reply);
+```
+OR
 
 ```c
 webOfflineCreate(&config, WebDocumentKind_OfflineHtmlPage, 0, ".htdocs/video.mp4");
@@ -23,6 +31,8 @@ webConfigShow(&config, &reply);
 ```
 
 When the video finishes, the applet exits automatically and returns to the Switch home menu.
+
+When using `index.html`, exiting the video acts as a normal web-applet and returns to the index page.
 
 ---
 
@@ -43,13 +53,13 @@ When the video finishes, the applet exits automatically and returns to the Switc
 ## Repository Structure
 
 ```
-├── exefs/              # Compiled NSO binary (main) and main.npdm
 ├── logo/               # Nintendo logo assets
-├── video/              # Place video.mp4 here
+├── video/              # Place index.html with videos OR video.mp4 here
 │   └── video.mp4
 ├── tools/
 │   ├── hacpack         # hacpack binary (Linux, for CI)
 │   ├── hacpack.exe     # hacpack binary (Windows, for local builds)
+│   ├── npdmtool.exe    # tool for building the main.npdm
 │   └── generate_control.py
 ├── icon.jpg            # Title icon (256x256)
 ├── npdm.json           # NPDM config template
@@ -63,14 +73,14 @@ When the video finishes, the applet exits automatically and returns to the Switc
 
 ### Configuration
 
-All title metadata is set at the top of `build.bat` (Windows) or in the `env:` block of `.github/workflows/build.yml` (CI):
+All title metadata is set at the top of `build.bat` (Windows) OR in the `env:` block of `.github/workflows/build.yml` (CI):
 
 | Field | Description |
 |---|---|
 | `TITLE` | Display name shown on the Switch home menu |
 | `AUTHOR` | Author name shown in title info |
 | `DISPLAY_VER` | Display version string |
-| `TITLE_ID` | Unique title ID in hex (e.g. `0400000000420000`) |
+| `TITLE_ID` | Unique title ID in hex (e.g. `0400000000400000`) |
 | `KEYGEN` | NCA key generation |
 | `SDK_VER` | SDK version |
 | `SYS_VER` | Minimum required system version |
@@ -81,7 +91,7 @@ All title metadata is set at the top of `build.bat` (Windows) or in the `env:` b
 
 ### Windows (local)
 
-1. Place `video.mp4` in the `video/` folder
+1. Place `index.html` with videos OR `video.mp4` in the `video/` folder
 2. Place `keys.dat` in the repo root
 3. Run `build.bat`
 4. Output NSP will be in `nsp/`
@@ -103,10 +113,8 @@ The built NSP is uploaded as a workflow artifact.
 
 ## Dependencies
 
-- [hacpack](https://github.com/The-4n/hacPack)
+- [hacpack](https://github.com/The-4n/hacPack) — included in `tools/` folder for both windows and linux
 - [npdmtool](https://github.com/nicoboss/npdmtool) — included via `devkitpro/devkita64` Docker image in CI, or place `npdmtool.exe` in `tools/` for local Windows builds
-- [libnx](https://github.com/switchbrew/libnx)
-- [devkitA64](https://devkitpro.org)
 
 ---
 
