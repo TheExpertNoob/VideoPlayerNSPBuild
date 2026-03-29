@@ -137,3 +137,6 @@ The built NSP is uploaded as a workflow artifact.
   registry at https://wiki.gbatemp.net/wiki/List_of_Switch_homebrew_titleID to avoid
   conflicts with other released homebrew
 - The offline web applet used for playback is a system applet present on all Switch firmware versions — no internet connection is required
+
+## Useful Tool
+https://github.com/SuperOkazaki/HTML-Video-Template-NX
